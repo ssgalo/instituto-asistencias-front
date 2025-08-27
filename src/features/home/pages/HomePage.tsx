@@ -1,15 +1,21 @@
 // src/features/home/pages/HomePage.tsx
 
-import { mockClases } from '../../../_mockData/classes';
-import type { Clase } from '../../../types/Clase';
+import { useState, useEffect } from 'react';
 import logoInstituto from '../../../assets/logo-instituto.jpg';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../../../api/apiClient';
 import { formatDisplayDate } from '../../../utils/dateUtils';
+
+interface ClaseApi {
+    fecha: string;
+    total: number;
+    id: number;
+}
 
 // --- Lógica de fechas ---
 const getClassStatus = (fechaClase: string): { status: 'hoy' | 'pasada' | 'futura'; color: 'teal' | 'cyan' | 'slate' } => {
     const hoy = new Date();
-    const fecha = new Date(fechaClase + 'T00:00:00');
+    const fecha = new Date(fechaClase); 
     hoy.setHours(0, 0, 0, 0);
 
     if (fecha.getTime() < hoy.getTime()) {
@@ -24,10 +30,42 @@ const getClassStatus = (fechaClase: string): { status: 'hoy' | 'pasada' | 'futur
 const HomePage = () => {
     const navigate = useNavigate();
 
-    const handleNavigate = (claseId: number) => {
-        // Navegamos a la página de asistencias con el ID de la clase
-        navigate(`/clase/${claseId}/asistencias`);
+    const [clases, setClases] = useState<ClaseApi[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    // 2. Usar useEffect para llamar a la API cuando el componente se carga
+    useEffect(() => {
+        const fetchClases = async () => {
+            try {
+                const response = await apiClient.get('/ObtenerAsistencias');
+                if (response.data && response.data.respuesta) {
+                    // Asignamos un ID temporal para la key de React
+                    const clasesConId = response.data.datos.map((c: ClaseApi, index: number) => ({ ...c, id: index + 1 }));
+                    setClases(clasesConId);
+                } else {
+                    setError('No se pudieron cargar las clases.');
+                }
+            } catch (err) {
+                setError('Error de conexión al cargar las clases.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchClases();
+    }, []);
+
+    const handleNavigate = (fechaClase: string) => {
+        navigate(`/clase/${fechaClase}/asistencias`);
     };
+
+    if (isLoading) {
+        return <div className="min-h-screen bg-slate-800 text-white flex justify-center items-center">Cargando clases...</div>;
+    }
+
+    if (error) {
+        return <div className="min-h-screen bg-slate-800 text-white flex justify-center items-center">{error}</div>;
+    }
 
     const colorClasses = {
         teal: {
@@ -38,7 +76,7 @@ const HomePage = () => {
         cyan: {
             border: 'border-cyan-400',
             tagBg: 'bg-cyan-400/20 text-cyan-300',
-            button: 'bg-gray-500',
+            button: 'bg-cyan-600 hover:bg-cyan-700 text-white',
         },
         slate: {
             border: 'border-slate-500',
@@ -59,12 +97,12 @@ const HomePage = () => {
                     </h1>
 
                     <div className="w-full flex flex-col space-y-4">
-                        {mockClases.map((clase) => {
-                            const { status, color } = getClassStatus(clase.fechaClase);
+                        {clases.map((clase) => {
+                            const { status, color } = getClassStatus(clase.fecha);
                             const colors = colorClasses[color];
                             return (
                                 <div
-                                    key={clase.idClase}
+                                    key={clase.id}
                                     className={`bg-slate-700 shadow-lg rounded-lg p-4 border-l-4 ${colors.border} ${status === 'pasada' ? 'opacity-60' : ''}`}
                                 >
                                     <div className="flex flex-col items-start space-y-3">
@@ -72,15 +110,13 @@ const HomePage = () => {
                                             Clase {status.toUpperCase()}
                                         </span>
 
-                                        <h2 className="text-xl font-semibold text-white">{formatDisplayDate(clase.fechaClase)}</h2>
+                                        <h2 className="text-xl font-semibold text-white">{formatDisplayDate(clase.fecha)}</h2>
 
                                         <button
-                                            // 4. Conectar la función al evento onClick del botón
-                                            onClick={() => handleNavigate(clase.idClase)}
-                                            className={`mt-2 px-4 py-2 font-bold rounded-lg shadow-md transition-transform transform hover:scale-105 duration-200 ${colors.button} disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
-                                            disabled={status === 'futura'}
+                                            onClick={() => handleNavigate(clase.fecha.split('T')[0])}
+                                            className={`mt-4 px-4 py-2 font-bold rounded-lg shadow-md transition-transform transform hover:scale-105 duration-200 ${colors.button} disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
                                         >
-                                            {status === 'pasada' ? 'Ver Asistencias' : 'Registrar Asistencia'}
+                                            {status === 'pasada' ? `Ver Asistencias (${clase.total})` : 'Registrar Asistencia'}
                                         </button>
                                     </div>
                                 </div>

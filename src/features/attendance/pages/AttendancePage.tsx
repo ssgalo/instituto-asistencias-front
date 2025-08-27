@@ -1,65 +1,169 @@
-// src/features/attendance/pages/AttendancePage.tsx
-
 import { Link, useParams } from 'react-router-dom';
-import { mockAttendees } from '../../../_mockData/attendees';
 import { AttendanceTable } from '../components/AttendanceTable';
 import { ArrowLeft, Search, QrCode, ScanLine } from 'lucide-react';
-import { useState, useMemo } from 'react';
-import { mockClases } from '../../../_mockData/classes';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { formatDisplayDate } from '../../../utils/dateUtils';
 import { DniModal } from '../../../components/DniModal';
 import { QRScanner } from '../components/QRScanner';
+import apiClient from '../../../api/apiClient';
+import { useAuth } from '../../../context/AuthContext';
+import type { Alumno } from '../../../types/Alumno';
+import { useToast } from '../../../context/ToastContext';
+import { ConfirmationModal } from '../../../components/common/ConfirmationModal';
+import { ConfirmAttendanceModal } from '../components/ConfirmAttendanceModal';
 
 const AttendancePage = () => {
-    const { claseId } = useParams(); // Obtenemos el ID de la clase desde la URL
+    const { claseId: fechaClase } = useParams<{ claseId: string }>();
+    const { showToast } = useToast();
+    const { user } = useAuth();
 
-    const claseActual = mockClases.find(clase => clase.idClase.toString() === claseId);
-    const fechaFormateada = claseActual ? formatDisplayDate(claseActual.fechaClase) : 'Fecha no encontrada';
+    // Estado para los datos de la API
+    const [attendees, setAttendees] = useState<Alumno[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState('');
 
-
-    // Aquí, en el futuro, harías una llamada a la API:
-    // const { data: attendees, isLoading } = useGetAttendees(claseId);
-
+    // Estado para los filtros de búsqueda
     const [dniFilter, setDniFilter] = useState('');
     const [nameFilter, setNameFilter] = useState('');
 
+    // Estado para controlar los modales
     const [isDniModalOpen, setIsDniModalOpen] = useState(false);
     const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
-    const filteredAttendees = useMemo(() => {
-        let filtered = mockAttendees;
+    // Estado para controlar los modales de eliminar
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [selectedAttendee, setSelectedAttendee] = useState<Alumno | null>(null);
 
-        // Aplicar filtro por DNI
+    const [scannedAlumno, setScannedAlumno] = useState<Alumno | null>(null);
+
+
+    const openDeleteConfirm = (alumno: Alumno) => {
+        setSelectedAttendee(alumno);
+        setIsConfirmModalOpen(true);
+    };
+
+    const handleDelete = async () => {
+        if (!selectedAttendee || !fechaClase) return;
+        try {
+            const response = await apiClient.delete('/EliminarAsistencia', {
+                data: {
+                    dni: selectedAttendee.dni.toString(),
+                    fechaClase: fechaClase
+                }
+            });
+
+            if (response.data && response.data.respuesta) {
+                showToast('Asistencia eliminada con éxito.', 'success');
+                fetchAttendees(); // Refrescar la tabla
+            } else {
+                showToast(`Error: ${response.data.errores}`, 'error');
+            }
+        } catch (err) {
+            showToast('Error de conexión al eliminar la asistencia.', 'error');
+        } finally {
+            setIsConfirmModalOpen(false);
+            setSelectedAttendee(null);
+        }
+    };
+
+    const confirmAndRegister = () => {
+        if (scannedAlumno) {
+            handleRegister(scannedAlumno.dni.toString());
+        }
+        setIsConfirmModalOpen(false); // Cerramos el modal de confirmación
+    };
+
+    const handleQrScan = async (dni: string) => {
+        setIsQrModalOpen(false); // Cerramos el modal del escáner
+        try {
+            // Buscamos los datos del alumno usando el DNI del QR
+            const response = await apiClient.get(`/ObtenerAlumno/${dni}`);
+            if (response.data && response.data.respuesta) {
+                setScannedAlumno(response.data.datos);
+                setIsConfirmModalOpen(true); // Abrimos el modal de confirmación
+            } else {
+                showToast(response.data.errores || 'Alumno no encontrado.', 'error');
+            }
+        } catch (err) {
+            showToast('Error de conexión al buscar el alumno.', 'error');
+        }
+    };
+
+    // 1. FUNCIÓN PARA OBTENER DATOS DE LA API
+    const fetchAttendees = useCallback(async () => {
+        if (!fechaClase) return;
+        try {
+            // No seteamos isLoading aquí para que la tabla no desaparezca al refrescar
+            const response = await apiClient.get(`/asistencias/${fechaClase}`);
+            if (response.data && response.data.respuesta) {
+                setAttendees(response.data.datos || []);
+            } else {
+                setError(response.data.errores || 'No se pudieron cargar los asistentes.');
+            }
+        } catch (err) {
+            setError('Error de conexión al cargar los asistentes.');
+        } finally {
+            setIsLoading(false); // Solo se ejecuta la primera vez
+        }
+    }, [fechaClase]);
+
+    // Llamar a fetchAttendees al cargar la página
+    useEffect(() => {
+        fetchAttendees();
+    }, [fetchAttendees]);
+
+    // 2. FUNCIÓN ÚNICA Y CORRECTA PARA REGISTRAR ASISTENCIA
+    const handleRegister = async (dni: string) => {
+        if (!user) {
+            showToast("Error: No se ha encontrado el usuario logueado.", 'error');
+            return;
+        }
+        try {
+            const response = await apiClient.post('/RegistrarAsistencia', {
+                dni,
+                id_asistente: parseInt(user.id_asistente, 10),
+                fechaClase: fechaClase,
+            });
+
+            if (response.data && response.data.respuesta) {
+                showToast(`Asistencia para DNI ${dni} registrada con éxito.`, 'success');
+                fetchAttendees();
+            } else {
+                showToast(`Error al registrar: ${response.data.errores}`, 'error');
+            }
+        } catch (err) {
+            showToast("Error de conexión al registrar la asistencia.", 'error');
+        } finally {
+            // Cerrar ambos modales por si acaso
+            setIsDniModalOpen(false);
+            setIsQrModalOpen(false);
+        }
+    };
+
+    // 3. LÓGICA DE FILTRADO APLICADA A LOS DATOS REALES
+    const filteredAttendees = useMemo(() => {
+        // Usamos 'attendees' (el estado con datos de la API), no 'mockAttendees'
+        let filtered = attendees;
         if (dniFilter) {
             filtered = filtered.filter(attendee =>
                 attendee.dni.toString().includes(dniFilter)
             );
         }
-
-        // Aplicar filtro por Nombre y Apellido
         if (nameFilter) {
             const lowercasedFilter = nameFilter.toLowerCase();
             filtered = filtered.filter(attendee =>
                 `${attendee.nombre} ${attendee.apellido}`.toLowerCase().includes(lowercasedFilter)
             );
         }
-
         return filtered;
-    }, [dniFilter, nameFilter]);
+    }, [attendees, dniFilter, nameFilter]); // Ahora depende de 'attendees'
 
-    const handleDniRegister = (dni: string) => {
-        console.log(`DNI Registrado: ${dni}`); // Aquí irá la llamada a la API
-        alert(`Asistencia registrada para el DNI: ${dni}`);
-        setIsDniModalOpen(false); // Cerrar el modal
-    };
+    // Formatear la fecha para el título
+    const fechaFormateada = fechaClase ? formatDisplayDate(fechaClase) : 'Cargando fecha...';
 
-    const handleQrScan = (dni: string) => {
-        setIsQrModalOpen(false); // Cerrar el modal
-        alert(`QR Escaneado - DNI: ${dni}`); // Mostrar el alert con el DNI
-        // Aquí, en el futuro, llamarías a la API con el DNI
-    };
-
-    const attendees = mockAttendees;
+    // Manejo de estados de carga y error
+    if (isLoading) return <div className="min-h-screen bg-slate-800 text-white flex justify-center items-center">Cargando...</div>;
+    if (error) return <div className="min-h-screen bg-slate-800 text-red-400 flex justify-center items-center">{error}</div>;
 
     return (
         <div className="min-h-screen bg-slate-800 font-sans text-white p-4">
@@ -71,7 +175,6 @@ const AttendancePage = () => {
                 <h1 className="text-3xl font-bold mb-2">Asistencias de la Clase</h1>
                 <h2 className="text-xl text-slate-300 mb-6">{fechaFormateada}</h2>
 
-                {/* 4. Agregar los campos de búsqueda (inputs) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     {/* Filtro por DNI */}
                     <div className="relative">
@@ -89,7 +192,6 @@ const AttendancePage = () => {
                         </div>
                     </div>
 
-                    {/* Filtro por Nombre y Apellido */}
                     <div className="relative">
                         <label htmlFor="name-search" className="sr-only">Buscar por Nombre y Apellido</label>
                         <input
@@ -122,12 +224,12 @@ const AttendancePage = () => {
                         Ingresar DNI
                     </button>
                 </div>
-                <AttendanceTable data={filteredAttendees} />
+                <AttendanceTable data={filteredAttendees} fechaClase={fechaClase} onDeleteClick={openDeleteConfirm} />
             </div>
             <DniModal
                 isOpen={isDniModalOpen}
                 onClose={() => setIsDniModalOpen(false)}
-                onRegister={handleDniRegister}
+                onRegister={handleRegister}
             />
             {isQrModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center p-4">
@@ -143,6 +245,21 @@ const AttendancePage = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={isConfirmModalOpen}
+                onClose={() => setIsConfirmModalOpen(false)}
+                onConfirm={handleDelete}
+                title="Eliminar Asistencia"
+                message={`¿Estás seguro de que deseas eliminar la asistencia de ${selectedAttendee?.nombre} ${selectedAttendee?.apellido}? Esta acción no se puede deshacer.`}
+            />
+
+            <ConfirmAttendanceModal
+                isOpen={isConfirmModalOpen}
+                onClose={() => setIsConfirmModalOpen(false)}
+                onConfirm={confirmAndRegister}
+                alumno={scannedAlumno}
+            />
         </div>
     );
 };
