@@ -1,6 +1,5 @@
 // src/context/AuthContext.tsx
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import apiClient from '../api/apiClient';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { jwtDecode } from 'jwt-decode';
 
 interface User {
