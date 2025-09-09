@@ -114,6 +114,7 @@ const HomePage = () => {
 
                                         <button
                                             onClick={() => handleNavigate(clase.fecha.split('T')[0])}
+                                            disabled={status === 'futura'}
                                             className={`mt-4 px-4 py-2 font-bold rounded-lg shadow-md transition-transform transform hover:scale-105 duration-200 ${colors.button} disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
                                         >
                                             {status === 'pasada' ? `Ver Asistencias (${clase.total})` : 'Registrar Asistencia'}

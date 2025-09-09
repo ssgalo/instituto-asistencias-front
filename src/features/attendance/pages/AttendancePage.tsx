@@ -120,7 +120,7 @@ const AttendancePage = () => {
         }
         try {
             const response = await apiClient.post('/RegistrarAsistencia', {
-                dni,
+                dni: parseInt(dni, 10),
                 id_asistente: parseInt(user.id_asistente, 10),
                 fechaClase: fechaClase,
             });
