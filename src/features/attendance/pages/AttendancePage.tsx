@@ -104,17 +104,20 @@ const AttendancePage = () => {
         } catch (err) {
             setError('Error de conexión al cargar los asistentes.');
         } finally {
-            setIsLoading(false); // Solo se ejecuta la primera vez
+            setIsLoading(false); 
         }
     }, [fechaClase]);
 
-    // Llamar a fetchAttendees al cargar la página
     useEffect(() => {
         fetchAttendees();
     }, [fetchAttendees]);
 
-    // 2. FUNCIÓN ÚNICA Y CORRECTA PARA REGISTRAR ASISTENCIA
     const handleRegister = async (dni: string) => {
+        if (!/^\d{8}$/.test(dni)) {
+            showToast("El DNI debe tener exactamente 8 dígitos.", 'error');
+            return; 
+        }
+        
         if (!user) {
             showToast("Error: No se ha encontrado el usuario logueado.", 'error');
             return;
