@@ -36,6 +36,8 @@ const AttendancePage = () => {
 
     const [scannedAlumno, setScannedAlumno] = useState<Alumno | null>(null);
 
+    const [isScanConfirmOpen, setIsScanConfirmOpen] = useState(false);
+
 
     const openDeleteConfirm = (alumno: Alumno) => {
         setSelectedAttendee(alumno);
@@ -70,17 +72,16 @@ const AttendancePage = () => {
         if (scannedAlumno) {
             handleRegister(scannedAlumno.dni.toString());
         }
-        setIsConfirmModalOpen(false); // Cerramos el modal de confirmación
+        setIsScanConfirmOpen(false);
     };
 
     const handleQrScan = async (dni: string) => {
-        setIsQrModalOpen(false); // Cerramos el modal del escáner
+        setIsQrModalOpen(false);
         try {
-            // Buscamos los datos del alumno usando el DNI del QR
             const response = await apiClient.get(`/ObtenerAlumno/${dni}`);
             if (response.data && response.data.respuesta) {
                 setScannedAlumno(response.data.datos);
-                setIsConfirmModalOpen(true); // Abrimos el modal de confirmación
+                setIsScanConfirmOpen(true);
             } else {
                 showToast(response.data.errores || 'Alumno no encontrado.', 'error');
             }
@@ -256,7 +257,7 @@ const AttendancePage = () => {
 
             <ConfirmAttendanceModal
                 isOpen={isConfirmModalOpen}
-                onClose={() => setIsConfirmModalOpen(false)}
+                onClose={() => setIsScanConfirmOpen(false)}
                 onConfirm={confirmAndRegister}
                 alumno={scannedAlumno}
             />
