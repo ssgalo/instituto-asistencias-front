@@ -256,7 +256,7 @@ const AttendancePage = () => {
             />
 
             <ConfirmAttendanceModal
-                isOpen={isConfirmModalOpen}
+                isOpen={isScanConfirmOpen}
                 onClose={() => setIsScanConfirmOpen(false)}
                 onConfirm={confirmAndRegister}
                 alumno={scannedAlumno}
