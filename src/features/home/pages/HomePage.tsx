@@ -1,7 +1,7 @@
 // src/features/home/pages/HomePage.tsx
 
 import { useState, useEffect } from 'react';
-import logoInstituto from '../../../assets/Logo Instituto PNG.png';
+import logoInstituto from '../../../assets/logo-instituto-home-login.png';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../../../api/apiClient';
 import { formatDisplayDate } from '../../../utils/dateUtils';

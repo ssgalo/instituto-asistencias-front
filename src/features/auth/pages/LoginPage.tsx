@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import apiClient from '../../../api/apiClient';
-import logoInstituto from '../../../assets/Logo Instituto PNG.png';
+import logoInstituto from '../../../assets/logo-instituto-home-login.png';
 import { useNavigate } from 'react-router-dom';
 
 const LoginPage = () => {
