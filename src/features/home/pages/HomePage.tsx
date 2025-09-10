@@ -93,7 +93,7 @@ const HomePage = () => {
                     <img src={logoInstituto} alt="Logo del Instituto Aliento de Vida" className="h-24 w-auto" />
 
                     <h1 className="text-3xl font-bold text-center text-slate-100">
-                        Registro de Asistencias - Curso de Emprendedores
+                        Registrá las asistencias
                     </h1>
 
                     <div className="w-full flex flex-col space-y-4">

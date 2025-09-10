@@ -42,7 +42,7 @@ const LoginPage = () => {
       <div className="w-full max-w-md">
         <img src={logoInstituto} alt="Logo Instituto" className="h-20 w-auto mx-auto mb-8" />
         <div className="bg-slate-700 shadow-lg rounded-lg p-8">
-          <h1 className="text-2xl font-bold text-center text-white mb-6">Iniciar Sesiónn</h1>
+          <h1 className="text-2xl font-bold text-center text-white mb-6">Iniciar Sesión</h1>
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
               <label htmlFor="usuario" className="block text-sm font-medium text-slate-300">Usuario</label>
