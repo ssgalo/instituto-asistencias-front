@@ -113,8 +113,8 @@ const AttendancePage = () => {
     }, [fetchAttendees]);
 
     const handleRegister = async (dni: string) => {
-        if (!/^\d{8}$/.test(dni)) {
-            showToast("El DNI debe tener exactamente 8 dígitos.", 'error');
+        if (!/^\d{7,8}$/.test(dni)) {
+            showToast("El DNI debe tener 7 u 8 dígitos.", 'error');
             return; 
         }
         
